@@ -2,37 +2,171 @@
 
 import { useEffect, useState } from "react";
 
+const API_URL = "http://localhost:8000";
+
 type Job = {
   id: number;
   company: string;
   title: string;
   status: string;
-  modality:string;
-  salary:string;
+  location: string | null;
+  url: string | null;
+  modality: string | null;
+  salary: string | null;
 };
+
+const STATUS_STYLES: Record<string, { label: string; className: string }> = {
+  saved: { label: "Guardada", className: "badge-saved" },
+  applied: { label: "Postulada", className: "badge-applied" },
+  interview: { label: "Entrevista", className: "badge-interview" },
+  offer: { label: "Oferta", className: "badge-offer" },
+  rejected: { label: "Rechazada", className: "badge-rejected" },
+};
+
+function normalizeUrl(url: string) {
+  return url.startsWith("http") ? url : `https://${url}`;
+}
 
 export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [company, setCompany] = useState("");
+  const [title, setTitle] = useState("");
+  const [location, setLocation] = useState("");
+  const [url, setUrl] = useState("");
+  const [modality, setModality] = useState("");
+  const [salary, setSalary] = useState("");
+
+  async function loadJobs() {
+    const res = await fetch(`${API_URL}/jobs`);
+    const data = await res.json();
+    setJobs(data);
+  }
 
   useEffect(() => {
-    fetch("http://localhost:8000/jobs")
-      .then((res) => res.json())
-      .then((data) => setJobs(data));
+    loadJobs();
   }, []);
 
-  return (
-    <main className="p-8">
-      <h1 className="text-2xl font-bold mb-4">JobTracker</h1>
-      <ul className="space-y-2">
-        {jobs.map((job) => (
-          <li key={job.id} className="border rounded p-3">
-            <p className="font-semibold">{job.title}</p>
-            <p className="text-sm text-gray-600">
-              {job.company} · {job.status} - {job.modality} - ${job.salary}
-            </p>
-          </li>
-        ))}
-      </ul>
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    const res = await fetch(`${API_URL}/jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        company,
+        title,
+        location: location || null,
+        url: url || null,
+        modality: modality || null,
+        salary: salary || null,
+      }),
+    });
+
+    if (res.ok) {
+      setCompany("");
+      setTitle("");
+      setLocation("");
+      setUrl("");
+      setModality("");
+      setSalary("");
+      loadJobs();
+    }
+  }
+
+    return (
+    <main>
+      <div className="container">
+        <h1 className="title">JobTracker</h1>
+
+        <form onSubmit={handleSubmit} className="form-card">
+          <h2 className="section-title form-wide">Nueva vacante</h2>
+
+          <input
+            className="field"
+            placeholder="Empresa *"
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            required
+          />
+          <input
+            className="field"
+            placeholder="Puesto *"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+          <input
+            className="field"
+            placeholder="Ubicación"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          />
+          <select
+            className="field"
+            value={modality}
+            onChange={(e) => setModality(e.target.value)}
+          >
+            <option value="">Modalidad</option>
+            <option value="Remoto">Remoto</option>
+            <option value="Híbrido">Híbrido</option>
+            <option value="Presencial">Presencial</option>
+          </select>
+          <input
+            className="field"
+            placeholder="Salario"
+            value={salary}
+            onChange={(e) => setSalary(e.target.value)}
+          />
+          <input
+            className="field"
+            placeholder="Enlace de la vacante"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+
+          <button type="submit" className="btn-primary form-wide">
+            Agregar vacante
+          </button>
+        </form>
+
+        <h2 className="section-title">Mis vacantes ({jobs.length})</h2>
+
+        <ul className="job-grid">
+          {jobs.map((job) => {
+            const status = STATUS_STYLES[job.status];
+            return (
+              <li key={job.id} className="job-card">
+                <div className="job-header">
+                  <div>
+                    <p className="job-title">{job.title}</p>
+                    <p className="job-company">{job.company}</p>
+                  </div>
+                  <span className={`badge ${status?.className ?? ""}`}>
+                    {status?.label ?? job.status}
+                  </span>
+                </div>
+
+                <div className="chips">
+                  {job.location && <span className="chip">📍 {job.location}</span>}
+                  {job.modality && <span className="chip">🏢 {job.modality}</span>}
+                  {job.salary && <span className="chip">💰 {job.salary}</span>}
+                </div>
+
+                {job.url && (
+                  <a
+                    href={normalizeUrl(job.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="job-link"
+                  >
+                    Ver vacante →
+                  </a>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </main>
   );
 }
