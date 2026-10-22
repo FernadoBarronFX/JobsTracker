@@ -5,9 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import models
 import schemas
-from database import Base, engine, get_db
+from database import get_db
 
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="JobsTaracker")
 
