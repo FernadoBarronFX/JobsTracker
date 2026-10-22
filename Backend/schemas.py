@@ -12,6 +12,7 @@ class JobCreate(BaseModel):
     description: str | None = None
     notes: str | None = None
     status: JobStatus = JobStatus.saved
+    contact_email: str | None = None
 
 class JobUpdate(BaseModel):
     """Todos los campos opcionales: sirve para actualizaciones parciales."""
@@ -24,6 +25,7 @@ class JobUpdate(BaseModel):
     description: str | None = None
     notes: str | None = None
     status: JobStatus | None = None
+    contact_email: str | None = None
 
 
 class JobOut(JobCreate):

@@ -28,6 +28,7 @@ class Job(Base):
     description: Mapped[str | None] = mapped_column(Text, default=None)
     notes: Mapped[str | None] = mapped_column(Text, default=None)
     status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.saved)
+    contact_email: Mapped[str | None] = mapped_column(String(120), default=None) 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
