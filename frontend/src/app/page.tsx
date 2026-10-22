@@ -1,31 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import JobCard, { type Job, STATUS_STYLES } from "@/components/JobCard";
 
 const API_URL = "http://localhost:8000";
 
-type Job = {
-  id: number;
-  company: string;
-  title: string;
-  status: string;
-  location: string | null;
-  url: string | null;
-  modality: string | null;
-  salary: string | null;
-};
-
-const STATUS_STYLES: Record<string, { label: string; className: string }> = {
-  saved: { label: "Guardada", className: "badge-saved" },
-  applied: { label: "Postulada", className: "badge-applied" },
-  interview: { label: "Entrevista", className: "badge-interview" },
-  offer: { label: "Oferta", className: "badge-offer" },
-  rejected: { label: "Rechazada", className: "badge-rejected" },
-};
-
-function normalizeUrl(url: string) {
-  return url.startsWith("http") ? url : `https://${url}`;
-}
 
 export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -41,6 +20,30 @@ export default function Home() {
     const data = await res.json();
     setJobs(data);
   }
+
+  async function handleDelete(id: number) {
+    if (!confirm("¿Eliminar esta vacante?")) return;
+
+    const res = await fetch(`${API_URL}/jobs/${id}`, { method: "DELETE" });
+
+    if (res.ok) {
+      loadJobs();
+    }
+  }
+
+
+  async function handleStatusChange(id: number, status: string) {
+    const res = await fetch(`${API_URL}/jobs/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+
+    if (res.ok) {
+      loadJobs();
+    }
+  }
+
 
   useEffect(() => {
     loadJobs();
@@ -73,7 +76,7 @@ export default function Home() {
     }
   }
 
-    return (
+  return (
     <main>
       <div className="container">
         <h1 className="title">JobTracker</h1>
@@ -131,41 +134,38 @@ export default function Home() {
 
         <h2 className="section-title">Mis vacantes ({jobs.length})</h2>
 
-        <ul className="job-grid">
-          {jobs.map((job) => {
-            const status = STATUS_STYLES[job.status];
+        <div className="board form-card">
+          {Object.entries(STATUS_STYLES).map(([status, { label, className }]) => {
+            const columnJobs = jobs.filter((job) => job.status === status);
+
             return (
-              <li key={job.id} className="job-card">
-                <div className="job-header">
-                  <div>
-                    <p className="job-title">{job.title}</p>
-                    <p className="job-company">{job.company}</p>
-                  </div>
-                  <span className={`badge ${status?.className ?? ""}`}>
-                    {status?.label ?? job.status}
-                  </span>
-                </div>
+              <section key={status}
+                className="column"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  const id = Number(e.dataTransfer.getData("text/plain"));
+                  handleStatusChange(id, status)
+                }}
+              >
+                <h3 className="column-title">
+                  <span className={`badge ${className}`}>{label}</span>
+                  <span className="column-count">{columnJobs.length}</span>
+                </h3>
 
-                <div className="chips">
-                  {job.location && <span className="chip">📍 {job.location}</span>}
-                  {job.modality && <span className="chip">🏢 {job.modality}</span>}
-                  {job.salary && <span className="chip">💰 {job.salary}</span>}
-                </div>
-
-                {job.url && (
-                  <a
-                    href={normalizeUrl(job.url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="job-link"
-                  >
-                    Ver vacante →
-                  </a>
-                )}
-              </li>
+                <ul className="column-list">
+                  {columnJobs.map((job) => (
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      onDelete={handleDelete}
+                      onStatusChange={handleStatusChange}
+                    />
+                  ))}
+                </ul>
+              </section>
             );
           })}
-        </ul>
+        </div>
       </div>
     </main>
   );
