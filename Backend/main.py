@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
+from security import hash_password
 
 import models
 import schemas
@@ -21,6 +22,19 @@ app.add_middleware(
 def health():
     return {"status" : "ok"}
 
+@app.post("/auth/register", response_model=schemas.UserOut, status_code=201)
+def register(data:schemas.UserCreate, db:Session = Depends(get_db)):
+    email = data.email.lower()
+    
+    existing = db.scalar(select(models.User).where(models.User.email == email))
+    if existing:
+        raise HTTPException(409, "Correo ya registrado")
+
+    user = models.User(email=email,hashed_password=hash_password(data.password))
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 @app.post("/jobs", response_model=schemas.JobOut, status_code=201)
