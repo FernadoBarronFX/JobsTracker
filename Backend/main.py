@@ -2,7 +2,8 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
-from security import hash_password
+from fastapi.security import OAuth2PasswordRequestForm
+from security import create_access_token, hash_password, verify_password
 
 import models
 import schemas
@@ -21,6 +22,26 @@ app.add_middleware(
 @app.get("/health")
 def health():
     return {"status" : "ok"}
+
+@app.post("/auth/login", response_model=schemas.Token)
+def login(
+    form: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    
+    email = form.username.lower()
+    user = db.scalar(select(models.User).where(models.User.email == email))
+
+    if not user or not verify_password(form.password, user.hashed_password):
+        raise HTTPException(
+            status_code=401,
+            detail="Correo o contraseña incorrectos",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return schemas.Token(access_token=create_access_token(user.id))
+
+
 
 @app.post("/auth/register", response_model=schemas.UserOut, status_code=201)
 def register(data:schemas.UserCreate, db:Session = Depends(get_db)):

@@ -15,6 +15,10 @@ class UserOut(BaseModel):
     created_at: datetime
 
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
 
 class JobCreate(BaseModel):
     company: str

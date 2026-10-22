@@ -5,6 +5,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from database import Base, get_db
+import os
+os.environ.setdefault("SECRET_KEY", "clave-solo-para-pruebas")
 from main import app
 
 # Base de datos en memoria, solo para pruebas
