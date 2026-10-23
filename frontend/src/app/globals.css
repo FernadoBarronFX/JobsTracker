@@ -1,5 +1,27 @@
 @import "tailwindcss";
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+h1, h2, h3, p, ul {
+  margin: 0;
+}
+
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+
 /* Paleta: aquí cambias los colores de toda la app */
 :root {
   --bg: #070b14;
