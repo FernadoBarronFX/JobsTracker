@@ -1,7 +1,7 @@
 import enum
 
 from datetime import datetime
-from sqlalchemy import DateTime, Enum, Integer, String, Text, func
+from sqlalchemy import DateTime, Enum, Integer, String, Text, func, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
@@ -30,6 +30,7 @@ class Job(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     
     
 class User(Base):

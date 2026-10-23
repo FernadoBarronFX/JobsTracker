@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AuthForm from "@/components/AuthForm";
 import JobCard, { type Job, STATUS_STYLES } from "@/components/JobCard";
-
-const API_URL = "http://localhost:8000";
-
+import { apiFetch, clearToken, getToken } from "@/lib/api";
 
 export default function Home() {
+  // null = todavía comprobando si hay sesión
+  const [authed, setAuthed] = useState<boolean | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [company, setCompany] = useState("");
   const [title, setTitle] = useState("");
@@ -15,44 +16,39 @@ export default function Home() {
   const [modality, setModality] = useState("");
   const [salary, setSalary] = useState("");
 
-  async function loadJobs() {
-    const res = await fetch(`${API_URL}/jobs`);
-    const data = await res.json();
-    setJobs(data);
-  }
-
-  async function handleDelete(id: number) {
-    if (!confirm("¿Eliminar esta vacante?")) return;
-
-    const res = await fetch(`${API_URL}/jobs/${id}`, { method: "DELETE" });
-
-    if (res.ok) {
-      loadJobs();
-    }
-  }
-
-
-  async function handleStatusChange(id: number, status: string) {
-    const res = await fetch(`${API_URL}/jobs/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-
-    if (res.ok) {
-      loadJobs();
-    }
-  }
-
-
+  // Al cargar: ¿hay token guardado? Y escuchar si la sesión se cierra
   useEffect(() => {
-    loadJobs();
+    setAuthed(!!getToken());
+
+    function onLogout() {
+      setJobs([]);
+      setAuthed(false);
+    }
+    window.addEventListener("auth:logout", onLogout);
+    return () => window.removeEventListener("auth:logout", onLogout);
   }, []);
+
+  // Cargar vacantes solo cuando hay sesión
+  useEffect(() => {
+    if (authed) loadJobs();
+  }, [authed]);
+
+  async function loadJobs() {
+    const res = await apiFetch("/jobs");
+    if (!res.ok) return;
+    setJobs(await res.json());
+  }
+
+  function handleLogout() {
+    clearToken();
+    setJobs([]);
+    setAuthed(false);
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const res = await fetch(`${API_URL}/jobs`, {
+    const res = await apiFetch("/jobs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -76,10 +72,34 @@ export default function Home() {
     }
   }
 
+  async function handleDelete(id: number) {
+    if (!confirm("¿Eliminar esta vacante?")) return;
+    const res = await apiFetch(`/jobs/${id}`, { method: "DELETE" });
+    if (res.ok) loadJobs();
+  }
+
+  async function handleStatusChange(id: number, status: string) {
+    const res = await apiFetch(`/jobs/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) loadJobs();
+  }
+
+  // Los "return" anticipados van DESPUÉS de todos los hooks
+  if (authed === null) return null;
+  if (!authed) return <AuthForm onLogin={() => setAuthed(true)} />;
+
   return (
     <main>
       <div className="container">
-        <h1 className="title">JobTracker</h1>
+        <div className="topbar">
+          <h1 className="title">JobTracker</h1>
+          <button className="btn-ghost" onClick={handleLogout}>
+            Cerrar sesión
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="form-card">
           <h2 className="section-title form-wide">Nueva vacante</h2>
@@ -134,17 +154,18 @@ export default function Home() {
 
         <h2 className="section-title">Mis vacantes ({jobs.length})</h2>
 
-        <div className="board form-card">
+        <div className="board">
           {Object.entries(STATUS_STYLES).map(([status, { label, className }]) => {
             const columnJobs = jobs.filter((job) => job.status === status);
 
             return (
-              <section key={status}
+              <section
+                key={status}
                 className="column"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   const id = Number(e.dataTransfer.getData("text/plain"));
-                  handleStatusChange(id, status)
+                  handleStatusChange(id, status);
                 }}
               >
                 <h3 className="column-title">

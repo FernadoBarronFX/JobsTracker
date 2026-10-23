@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from security import create_access_token, hash_password, verify_password
+from deps import get_current_user
 
 import models
 import schemas
@@ -22,6 +23,8 @@ app.add_middleware(
 @app.get("/health")
 def health():
     return {"status" : "ok"}
+
+
 
 @app.post("/auth/login", response_model=schemas.Token)
 def login(
@@ -58,39 +61,65 @@ def register(data:schemas.UserCreate, db:Session = Depends(get_db)):
     return user
 
 
+
 @app.post("/jobs", response_model=schemas.JobOut, status_code=201)
-def create_job(data:schemas.JobCreate, db:Session = Depends(get_db)):
-    job = models.Job(**data.model_dump())
-    db.add (job)
+def create_job(
+    data: schemas.JobCreate,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    job = models.Job(**data.model_dump(), user_id=user.id)
+    db.add(job)
     db.commit()
     db.refresh(job)
     return job
 
 
 
-@app.get("/jobs" , response_model=list[schemas.JobOut])
-def list_jobs(status:models.JobStatus | None = None, db:Session = Depends(get_db)):
-    query = select(models.Job).order_by(models.Job.created_at.desc())
+@app.get("/jobs", response_model=list[schemas.JobOut])
+def list_jobs(
+    status: models.JobStatus | None = None,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    query = (
+        select(models.Job)
+        .where(models.Job.user_id == user.id)
+        .order_by(models.Job.created_at.desc())
+    )
     if status:
         query = query.where(models.Job.status == status)
     return db.scalars(query).all()
 
 
 
-@app.get("/jobs/{job_id}", response_model=schemas.JobOut)
-def get_job(job_id: int, db: Session = Depends(get_db)):
+def get_user_job(job_id: int, db: Session, user: models.User) -> models.Job:
+    """Busca una vacante que pertenezca al usuario; si no, 404."""
     job = db.get(models.Job, job_id)
-    if not job:
+    if not job or job.user_id != user.id:
         raise HTTPException(404, "Vacante no encontrada")
     return job
 
 
 
+@app.get("/jobs/{job_id}", response_model=schemas.JobOut)
+def get_job(
+    job_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    return get_user_job(job_id, db, user)
+
+
+
 @app.patch("/jobs/{job_id}", response_model=schemas.JobOut)
-def update_job(job_id: int, data: schemas.JobUpdate, db: Session = Depends(get_db)):
-    job = db.get(models.Job, job_id)
-    if not job:
-        raise HTTPException(404, "Vacante no encontrada")
+def update_job(
+    job_id: int,
+    data: schemas.JobUpdate,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    job = get_user_job(job_id, db, user)
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(job, field, value)
     db.commit()
@@ -98,11 +127,12 @@ def update_job(job_id: int, data: schemas.JobUpdate, db: Session = Depends(get_d
     return job
 
 
-
 @app.delete("/jobs/{job_id}", status_code=204)
-def delete_job(job_id: int, db: Session = Depends(get_db)):
-    job = db.get(models.Job, job_id)
-    if not job:
-        raise HTTPException(404, "Vacante no encontrada")
+def delete_job(
+    job_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    job = get_user_job(job_id, db, user)
     db.delete(job)
     db.commit()

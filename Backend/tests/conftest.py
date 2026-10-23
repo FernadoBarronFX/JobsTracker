@@ -34,3 +34,16 @@ def client():
 
     app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)  # se borran al terminar
+    
+    
+@pytest.fixture()
+def auth_client(client):
+    """Cliente ya autenticado como ana@mail.com."""
+    client.post("/auth/register", json={"email": "ana@mail.com", "password": "supersecreta1"})
+    res = client.post("/auth/login", data={"username": "ana@mail.com", "password": "supersecreta1"})
+    client.headers["Authorization"] = f"Bearer {res.json()['access_token']}"
+    return client
+    
+    
+    
+    
