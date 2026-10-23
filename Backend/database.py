@@ -1,31 +1,28 @@
+import os
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-DATABASE_URL = "sqlite:///./jobtrack.db"
+load_dotenv()
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./jobtrack.db")
+
+# check_same_thread solo existe en SQLite
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autoflush=False)
 
 
-class Base (DeclarativeBase):
+class Base(DeclarativeBase):
     pass
 
+
 def get_db():
-    """Abre una sesion por peticion y la cierra al terminar"""
+    """Abre una sesión por petición y la cierra al terminar."""
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-
-
-
-
-
-
-
-
-
-
-
-
