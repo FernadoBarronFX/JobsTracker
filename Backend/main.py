@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from security import create_access_token, hash_password, verify_password
 from deps import get_current_user
+import os 
 
 import models
 import schemas
@@ -13,9 +14,11 @@ from database import get_db
 
 app = FastAPI(title="JobsTaracker")
 
+origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
